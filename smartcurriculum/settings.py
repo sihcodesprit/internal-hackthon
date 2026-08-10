@@ -16,6 +16,7 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
 ALLOWED_HOSTS = os.environ.get(
     'DJANGO_ALLOWED_HOSTS', '*'
 ).split(',')
+ALLOWED_HOSTS += ['.vercel.app']
 
 CSRF_TRUSTED_ORIGINS = [
     o for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o
