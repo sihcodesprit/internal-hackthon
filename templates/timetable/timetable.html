@@ -77,7 +77,7 @@
                         <span class="badge-premium badge-info" style="font-size: 11px;">🏫 {{ slot.room_number }}</span>
                         {% endif %}
                         <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
-                            {% widthratio slot.end_time|timeuntil:slot.start_time 1 1 %} hrs
+                            {{ slot.start_time|duration_hours:slot.end_time }} hrs
                         </div>
                     </div>
                 </div>

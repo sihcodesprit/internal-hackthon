@@ -1,3 +1,5 @@
+import datetime
+
 from django import template
 
 register = template.Library()
@@ -9,3 +11,14 @@ def dict_get(d, key):
     if isinstance(d, dict):
         return d.get(key, [])
     return []
+
+
+@register.filter
+def duration_hours(start, end):
+    """Hours between two time objects, for templates."""
+    try:
+        base = datetime.date.today()
+        delta = datetime.datetime.combine(base, end) - datetime.datetime.combine(base, start)
+        return round(delta.total_seconds() / 3600, 1)
+    except (TypeError, ValueError, AttributeError):
+        return 0

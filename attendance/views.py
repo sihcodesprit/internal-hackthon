@@ -17,6 +17,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Class, Subject, AttendanceSession, AttendanceRecord
 from .forms import ClassForm, AttendanceSessionForm
 from accounts.models import CustomUser
+from timetable.models import TimeSlot
 
 
 def dashboard(request):
@@ -43,6 +44,18 @@ def teacher_dashboard(request):
 
     total_students = sum(c.students.count() for c in classes)
 
+    today_day = today.strftime('%A')[:3].upper()
+    days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+    day_labels = {'MON': 'Monday', 'TUE': 'Tuesday', 'WED': 'Wednesday',
+                  'THU': 'Thursday', 'FRI': 'Friday', 'SAT': 'Saturday'}
+    week_slots = TimeSlot.objects.filter(
+        class_obj__teacher=teacher
+    ).select_related('class_obj__subject').order_by('day', 'start_time')
+    week_timetable = {day: [] for day in days}
+    for slot in week_slots:
+        week_timetable[slot.day].append(slot)
+    today_slots = week_timetable.get(today_day, [])
+
     context = {
         'classes': classes,
         'recent_sessions': recent_sessions,
@@ -51,6 +64,11 @@ def teacher_dashboard(request):
         'total_students': total_students,
         'total_classes': classes.count(),
         'today': today,
+        'today_day': today_day,
+        'days': days,
+        'day_labels': day_labels,
+        'week_timetable': week_timetable,
+        'today_slots': today_slots,
     }
     return render(request, 'attendance/teacher_dashboard.html', context)
 
@@ -77,7 +95,15 @@ def student_dashboard(request):
         })
 
     today = timezone.now().date()
+    today_day = today.strftime('%A')[:3].upper()
     recent_records = records.order_by('-marked_at')[:10]
+
+    today_slots = TimeSlot.objects.filter(
+        department=student.department,
+        year=student.year_of_study,
+        section=student.section,
+        day=today_day
+    ).select_related('class_obj__subject', 'class_obj__teacher').order_by('start_time')
 
     # Active sessions student can mark
     active_sessions = AttendanceSession.objects.filter(
@@ -91,6 +117,8 @@ def student_dashboard(request):
         'recent_records': recent_records,
         'active_sessions': active_sessions,
         'today': today,
+        'today_day': today_day,
+        'today_slots': today_slots,
     }
     return render(request, 'attendance/student_dashboard.html', context)
 

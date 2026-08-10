@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load timetable_extras %}
 {% block title %}Student Dashboard{% endblock %}
 {% block breadcrumb %}<i class="fas fa-home me-2"></i> Dashboard{% endblock %}
 
@@ -181,6 +182,66 @@
                 {% endif %}
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Today's Schedule -->
+<div class="card-premium fade-in-up mt-4">
+    <div class="card-header-premium">
+        <div class="section-title mb-0">
+            <i class="fas fa-calendar-day" style="color: var(--accent-primary);"></i> Today's Schedule
+            <span class="badge-premium badge-success ms-2">{{ today_day }}</span>
+            <span style="font-size: 13px; color: var(--text-muted); margin-left: 8px;">{{ today_slots|length }} period{{ today_slots|length|pluralize }}</span>
+        </div>
+        <a href="{% url 'timetable' %}" class="btn btn-premium btn-outline-premium" style="padding: 8px 16px; font-size: 13px;">
+            <i class="fas fa-expand"></i> View Full Timetable
+        </a>
+    </div>
+    <div class="card-body-premium">
+        {% if today_slots %}
+        <div class="timetable-grid">
+            {% for slot in today_slots %}
+            <div class="time-slot-card {{ slot.slot_type }}">
+                <div class="slot-time">
+                    {{ slot.start_time|time:"g:i A" }}<br>
+                    <span style="color: var(--text-muted); font-size: 11px;">{{ slot.end_time|time:"g:i A" }}</span>
+                </div>
+                <div style="flex: 1;">
+                    {% if slot.slot_type == 'class' and slot.class_obj %}
+                    <div style="font-weight: 700; font-size: 14px;">{{ slot.class_obj.subject.name }}</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">
+                        {{ slot.class_obj.subject.code }} · {{ slot.class_obj.teacher.get_full_name }}
+                    </div>
+                    {% elif slot.slot_type == 'free' %}
+                    <div style="font-weight: 700; font-size: 14px; color: var(--accent-success);">Free Period</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">Use this time productively</div>
+                    {% elif slot.slot_type == 'lunch' %}
+                    <div style="font-weight: 700; font-size: 14px; color: var(--accent-warning);">Lunch Break</div>
+                    {% elif slot.slot_type == 'lab' %}
+                    <div style="font-weight: 700; font-size: 14px; color: var(--accent-secondary);">Lab Session</div>
+                    {% endif %}
+                </div>
+                <div style="text-align: right;">
+                    {% if slot.room_number %}
+                    <span class="badge-premium badge-info" style="font-size: 11px;">🏫 {{ slot.room_number }}</span>
+                    {% endif %}
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                        {{ slot.start_time|duration_hours:slot.end_time }} hrs
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding: 30px;">
+            <i class="fas fa-calendar-times"></i>
+            <h3>No Classes Today</h3>
+            <p>Enjoy your day off or plan some self-study</p>
+            <a href="{% url 'daily_planner' %}" class="btn btn-premium btn-primary-grad mt-2">
+                <i class="fas fa-tasks"></i> Open Planner
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
