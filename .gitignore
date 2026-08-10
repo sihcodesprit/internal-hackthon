@@ -21,3 +21,6 @@ db.sqlite3-journal
 .vercelignore
 
 .DS_Store
+
+.vercel
+.env*
