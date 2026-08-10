@@ -1,105 +1,792 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Premium profile tabs styling */
+    .profile-tabs {
+        display: flex;
+        gap: 8px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 10px;
+        margin-bottom: 24px;
+        overflow-x: auto;
+    }
+    .profile-tab-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        padding: 10px 20px;
+        border-radius: var(--border-radius-sm);
+        font-weight: 600;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: var(--transition);
+        white-space: nowrap;
+    }
+    .profile-tab-btn:hover {
+        color: var(--accent-primary);
+        background: var(--bg-glass);
+    }
+    .profile-tab-btn.active {
+        color: white;
+        background: var(--gradient-primary);
+        box-shadow: 0 4px 15px rgba(108, 99, 255, 0.3);
+    }
+
+    /* Avatar hover uploader */
+    .avatar-uploader-container:hover .avatar-edit-badge {
+        transform: scale(1.1);
+        box-shadow: 0 0 15px var(--accent-primary);
+    }
+    .avatar-preview-circle img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: var(--transition);
+    }
+    .avatar-uploader-container:hover img {
+        filter: brightness(0.7);
+    }
+
+    /* Real-time Completeness circular gauge */
+    .completeness-container {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        background: var(--bg-glass);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 16px;
+        margin-bottom: 24px;
+    }
+    .completeness-gauge {
+        position: relative;
+        width: 64px;
+        height: 64px;
+        flex-shrink: 0;
+    }
+    .completeness-gauge svg {
+        transform: rotate(-90deg);
+        width: 100%;
+        height: 100%;
+    }
+    .completeness-gauge circle {
+        fill: none;
+        stroke-width: 6;
+    }
+    .completeness-gauge .bg-circle {
+        stroke: var(--border-color);
+    }
+    .completeness-gauge .progress-circle {
+        stroke: var(--accent-primary);
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.8s ease-in-out;
+    }
+    .completeness-text {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    /* Achievements & Badges */
+    .achievement-badge-card {
+        background: var(--bg-glass);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 24px 16px;
+        text-align: center;
+        transition: var(--transition);
+        height: 100%;
+    }
+    .achievement-badge-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--accent-primary);
+        box-shadow: var(--shadow-glow);
+    }
+    .badge-icon-box {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--bg-glass-hover);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        margin: 0 auto 12px;
+        transition: var(--transition);
+    }
+    .achievement-badge-card:hover .badge-icon-box {
+        background: var(--gradient-primary);
+        color: white !important;
+        transform: rotate(10deg) scale(1.1);
+    }
+    .badge-locked {
+        opacity: 0.4;
+        filter: grayscale(1);
+    }
+
+    /* Security Scanner (Face ID simulation overlay) */
+    .biometric-scanner-box {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        border: 2px dashed var(--accent-primary);
+        border-radius: 24px;
+        margin: 16px auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(108, 99, 255, 0.05);
+        overflow: hidden;
+    }
+    .scanner-line {
+        position: absolute;
+        width: 100%;
+        height: 3px;
+        background: var(--accent-secondary);
+        box-shadow: 0 0 12px var(--accent-secondary);
+        animation: scanAnimation 2s infinite ease-in-out;
+    }
+    @keyframes scanAnimation {
+        0% { top: 0%; }
+        50% { top: 100%; }
+        100% { top: 0%; }
+    }
+
+    /* Custom form elements overrides */
+    .form-premium select,
+    .form-premium input[type="file"] {
+        background-color: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        border-radius: var(--border-radius-sm);
+        padding: 10px 14px;
+        transition: var(--transition);
+    }
+    .form-premium select:focus {
+        border-color: var(--accent-primary);
+        outline: none;
+        box-shadow: 0 0 10px rgba(108, 99, 255, 0.2);
+    }
+
+    /* Glow labels */
+    .bg-success-glow {
+        background: rgba(0, 230, 118, 0.15);
+    }
+</style>
+{% endblock %}
+
 {% block breadcrumb %}Account / <span style="color:var(--accent-primary)">Profile</span>{% endblock %}
 
 {% block content %}
+<!-- Live Biometric Verification Modal Overlay -->
+<div id="biometricScannerOverlay" class="d-none" style="position: fixed; inset: 0; background: rgba(10, 10, 26, 0.9); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+    <div class="card-premium p-4 text-center" style="max-width: 320px; border-color: var(--accent-primary);">
+        <h4 class="mb-3">Biometrics Verification</h4>
+        <div class="biometric-scanner-box">
+            <div class="scanner-line"></div>
+            <i class="fas fa-fingerprint fa-3x text-accent-primary animate-pulse" id="fingerprintIcon"></i>
+            <i class="fas fa-check-circle fa-4x text-success d-none" id="scanSuccessIcon"></i>
+        </div>
+        <p id="scannerStatusText" class="text-muted mt-3" style="font-size: 13px;">Setting up secure authentication channel...</p>
+    </div>
+</div>
+
+<!-- Calendar Sync Modal -->
+<div class="modal fade" id="calendarSyncModal" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(8px);">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content card-premium" style="border-color: var(--accent-primary);">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title font-space"><i class="fab fa-google text-danger me-2"></i>Google Calendar Sync</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4 text-center">
+                <div id="syncModalStatus" style="font-size: 15px; font-weight: 500;">
+                    <i class="fas fa-spinner fa-spin me-2 text-accent-primary"></i> Initiating connection...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="page-header fade-in-up">
-    <h1 class="page-title"><i class="fas fa-user-circle me-2 text-gradient"></i> My Profile</h1>
-    <p class="page-subtitle">Manage your account information</p>
+    <h1 class="page-title"><i class="fas fa-id-card-alt me-2 text-gradient"></i> Academic Identity & Hub</h1>
+    <p class="page-subtitle">Configure secure access, calendar tools, notifications, and profile details</p>
 </div>
 
 <div class="row g-4">
+    <!-- Left Column: Identity Summary Card & Biometric Toggle -->
     <div class="col-lg-4">
-        <div class="card-premium fade-in-up text-center">
+        <!-- Identity Summary Card -->
+        <div class="card-premium fade-in-up text-center mb-4">
             <div class="card-body-premium" style="padding: 40px 24px;">
-                <div style="width: 90px; height: 90px; border-radius: 50%; margin: 0 auto 16px;
-                    background: var(--gradient-primary); display: flex; align-items: center; justify-content: center;
-                    font-size: 36px; font-weight: 800; color: white; box-shadow: var(--shadow-glow);">
-                    {% if user.first_name %}{{ user.first_name.0 }}{{ user.last_name.0 }}{% else %}{{ user.username.0|upper }}{% endif %}
+                <!-- Interactive Avatar Uploader -->
+                <div class="avatar-uploader-container position-relative" style="width: 120px; height: 120px; margin: 0 auto 20px;">
+                    <div class="avatar-preview-circle" style="width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 3px solid var(--accent-primary); box-shadow: var(--shadow-glow); display: flex; align-items: center; justify-content: center; background: var(--bg-secondary);">
+                        {% if user.profile_picture %}
+                            <img id="avatarPreview" src="{{ user.profile_picture.url }}" alt="Profile Picture">
+                        {% else %}
+                            <div id="avatarInitials" style="font-size: 44px; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                                {% if user.first_name %}{{ user.first_name.0 }}{{ user.last_name.0 }}{% else %}{{ user.username.0|upper }}{% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <!-- Camera Edit Badge linking to django file input -->
+                    <label for="id_profile_picture" class="avatar-edit-badge" style="position: absolute; bottom: 0; right: 0; background: var(--gradient-primary); width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; border: 2px solid var(--bg-primary); transition: var(--transition);">
+                        <i class="fas fa-camera" style="font-size: 14px;"></i>
+                    </label>
                 </div>
-                <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 4px;">{{ user.get_full_name|default:user.username }}</h2>
-                <div class="user-role" style="display: inline-block; margin-bottom: 16px;">{{ user.role|title }}</div>
-                <hr class="divider">
-                <div style="text-align: left; font-size: 13px;">
-                    <div class="d-flex gap-2 mb-3">
-                        <i class="fas fa-envelope" style="color: var(--accent-primary); width: 16px; margin-top: 2px;"></i>
-                        <span>{{ user.email|default:"Not set" }}</span>
+
+                <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 4px;">{{ user.get_full_name|default:user.username }}</h2>
+                <div class="user-role" style="display: inline-block; margin-bottom: 20px; background: var(--gradient-primary); color: white; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                    {{ user.role|upper }}
+                </div>
+                
+                <!-- Completeness Gauge -->
+                <div class="completeness-container">
+                    <div class="completeness-gauge">
+                        <svg viewBox="0 0 36 36">
+                            <circle class="bg-circle" cx="18" cy="18" r="15"/>
+                            <circle class="progress-circle" cx="18" cy="18" r="15" stroke-dasharray="94.2 94.2" stroke-dashoffset="94.2"/>
+                        </svg>
+                        <div class="completeness-text" id="completenessPercent">0%</div>
                     </div>
-                    <div class="d-flex gap-2 mb-3">
-                        <i class="fas fa-phone" style="color: var(--accent-secondary); width: 16px; margin-top: 2px;"></i>
-                        <span>{{ user.phone|default:"Not set" }}</span>
+                    <div style="text-align: left;">
+                        <div style="font-size: 13px; font-weight: 700;">Profile Completeness</div>
+                        <div style="font-size: 11px; color: var(--text-muted);" id="completenessTips">Add missing details to unlock badges</div>
                     </div>
-                    <div class="d-flex gap-2 mb-3">
-                        <i class="fas fa-building" style="color: var(--accent-tertiary); width: 16px; margin-top: 2px;"></i>
-                        <span>{{ user.department|default:"Not set" }}</span>
+                </div>
+
+                <hr class="divider" style="margin: 20px 0; opacity: 0.1;">
+                
+                <div style="text-align: left; font-size: 13px; color: var(--text-secondary);">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <i class="fas fa-envelope" style="color: var(--accent-primary); width: 16px;"></i>
+                        <span>{{ user.email|default:"No email registered" }}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <i class="fas fa-phone" style="color: var(--accent-secondary); width: 16px;"></i>
+                        <span>{{ user.phone|default:"No phone configured" }}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <i class="fas fa-graduation-cap" style="color: var(--accent-tertiary); width: 16px;"></i>
+                        <span>{{ user.department|default:"No department assigned" }}</span>
                     </div>
                     {% if user.is_student %}
-                    <div class="d-flex gap-2 mb-3">
-                        <i class="fas fa-id-card" style="color: var(--accent-success); width: 16px; margin-top: 2px;"></i>
-                        <span>Roll: {{ user.roll_number|default:"Not set" }}</span>
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <i class="fas fa-id-card" style="color: var(--accent-success); width: 16px;"></i>
+                        <span>Roll Number: <strong>{{ user.roll_number|default:"N/A" }}</strong></span>
                     </div>
-                    <div class="d-flex gap-2 mb-3">
-                        <i class="fas fa-layer-group" style="color: var(--accent-warning); width: 16px; margin-top: 2px;"></i>
-                        <span>Year {{ user.year_of_study }} · Section {{ user.section }}</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="fas fa-layer-group" style="color: var(--accent-warning); width: 16px;"></i>
+                        <span>Year {{ user.year_of_study|default:"N/A" }} · Section {{ user.section|default:"N/A" }}</span>
                     </div>
                     {% else %}
-                    <div class="d-flex gap-2">
-                        <i class="fas fa-id-badge" style="color: var(--accent-success); width: 16px; margin-top: 2px;"></i>
-                        <span>EMP ID: {{ user.employee_id|default:"Not set" }}</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="fas fa-id-badge" style="color: var(--accent-success); width: 16px;"></i>
+                        <span>Employee ID: <strong>{{ user.employee_id|default:"N/A" }}</strong></span>
                     </div>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Biometrics Setup Card -->
+        <div class="card-premium fade-in-up delay-1">
+            <div class="card-header-premium">
+                <div class="section-title mb-0" style="font-size: 14px; font-weight: 700;">
+                    <i class="fas fa-fingerprint me-2 text-accent-secondary"></i>Biometric Access
+                </div>
+            </div>
+            <div class="card-body-premium" style="padding: 20px;">
+                <p class="text-muted" style="font-size: 12px; line-height: 1.5;">
+                    Activate biometric sign-in to quickly sign back into the portal or authorize attendance logs securely.
+                </p>
+                <div class="d-flex align-items-center justify-content-between p-3" style="background: var(--bg-glass); border: 1px solid var(--border-color); border-radius: 12px;">
+                    <div style="font-size: 13px; font-weight: 600;">Enable Biometrics</div>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="biometricsToggle" style="width: 40px; height: 20px; cursor: pointer;">
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Right Column: Tabs & Main Content Panels -->
     <div class="col-lg-8">
-        <div class="card-premium fade-in-up delay-2">
-            <div class="card-header-premium">
-                <div class="section-title mb-0">
-                    <i class="fas fa-edit" style="color: var(--accent-primary);"></i> Edit Profile
+        <!-- Navigation Tabs -->
+        <div class="profile-tabs">
+            <button class="profile-tab-btn active" onclick="switchTab('editProfilePane')" data-tab="editProfilePane">
+                <i class="fas fa-user-edit"></i> Edit Details
+            </button>
+            <button class="profile-tab-btn" onclick="switchTab('sessionsPane')" data-tab="sessionsPane">
+                <i class="fas fa-shield-alt"></i> Security & Sessions
+            </button>
+            <button class="profile-tab-btn" onclick="switchTab('badgesPane')" data-tab="badgesPane">
+                <i class="fas fa-award"></i> Accomplishments
+            </button>
+            <button class="profile-tab-btn" onclick="switchTab('addonsPane')" data-tab="addonsPane">
+                <i class="fas fa-plug"></i> Integrations & Add-ons
+            </button>
+        </div>
+
+        <!-- Tab 1: Edit Profile details -->
+        <div class="profile-tab-pane" id="editProfilePane">
+            <div class="card-premium fade-in-up">
+                <div class="card-header-premium">
+                    <div class="section-title mb-0">
+                        <i class="fas fa-edit me-2" style="color: var(--accent-primary);"></i> Edit Profile Details
+                    </div>
                 </div>
-            </div>
-            <div class="card-body-premium">
-                <form method="post" enctype="multipart/form-data" class="form-premium">
-                    {% csrf_token %}
-                    {% if messages %}
-                    {% for message in messages %}
-                    <div class="custom-alert alert-{{ message.tags }} mb-4">{{ message }}</div>
-                    {% endfor %}
-                    {% endif %}
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">First Name</label>
-                            {{ form.first_name }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Last Name</label>
-                            {{ form.last_name }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Email</label>
-                            {{ form.email }}
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Phone</label>
-                            {{ form.phone }}
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Department</label>
-                            {{ form.department }}
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Profile Picture</label>
+                <div class="card-body-premium">
+                    <form method="post" enctype="multipart/form-data" class="form-premium">
+                        {% csrf_token %}
+                        
+                        <!-- Hidden inputs for custom uploader triggers -->
+                        <div style="display:none;">
                             {{ form.profile_picture }}
                         </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="fas fa-user me-1 text-muted"></i> First Name</label>
+                                {{ form.first_name }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="fas fa-user me-1 text-muted"></i> Last Name</label>
+                                {{ form.last_name }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="fas fa-envelope me-1 text-muted"></i> Email Address</label>
+                                {{ form.email }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="fas fa-phone me-1 text-muted"></i> Mobile Number</label>
+                                {{ form.phone }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label"><i class="fas fa-building me-1 text-muted"></i> Department</label>
+                                {{ form.department }}
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-premium btn-primary-grad mt-4">
+                            <i class="fas fa-save me-1"></i> Save Changes
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Security & Session Log (Advanced Security feature) -->
+        <div class="profile-tab-pane d-none" id="sessionsPane">
+            <div class="card-premium fade-in-up">
+                <div class="card-header-premium">
+                    <div class="section-title mb-0">
+                        <i class="fas fa-key me-2" style="color: var(--accent-warning);"></i> Session Logs & Devices
                     </div>
-                    <button type="submit" class="btn btn-premium btn-primary-grad mt-4">
-                        <i class="fas fa-save"></i> Save Changes
+                    <button class="btn btn-premium btn-danger-grad" style="padding: 6px 14px; font-size: 12px;" onclick="terminateOtherSessions()">
+                        <i class="fas fa-sign-out-alt me-1"></i> Log Out Other Devices
                     </button>
-                </form>
+                </div>
+                <div class="card-body-premium">
+                    <p class="text-muted mb-4" style="font-size: 13px;">
+                        Monitor devices currently logged into your curriculum portal. If you detect unfamiliar activity, revoke access immediately.
+                    </p>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0" style="font-size: 13px;">
+                            <thead>
+                                <tr style="color: var(--text-muted); border-bottom: 1px solid var(--border-color);">
+                                    <th class="py-3">Device & Browser</th>
+                                    <th class="py-3">IP Address</th>
+                                    <th class="py-3">Location</th>
+                                    <th class="py-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td class="py-3 font-space">
+                                        <i class="fas fa-desktop text-accent-primary me-2"></i> Chrome (Windows 11)
+                                    </td>
+                                    <td class="py-3 font-space">157.44.119.82</td>
+                                    <td class="py-3">New Delhi, India</td>
+                                    <td class="py-3"><span class="badge bg-success-glow text-success">Current Session</span></td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid var(--border-color); opacity: 0.65;" id="mockSessionRow">
+                                    <td class="py-3 font-space">
+                                        <i class="fas fa-mobile-alt text-muted me-2"></i> Safari (iPhone 15 Pro)
+                                    </td>
+                                    <td class="py-3 font-space">103.88.94.214</td>
+                                    <td class="py-3">Mumbai, India</td>
+                                    <td class="py-3"><span class="badge bg-secondary text-light">Active 2 hrs ago</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Achievements (Academic and App badges) -->
+        <div class="profile-tab-pane d-none" id="badgesPane">
+            <div class="card-premium p-4">
+                <h3 class="font-space mb-2" style="font-size: 18px; font-weight: 700;">
+                    <i class="fas fa-medal me-2 text-gradient"></i> Earned Accolades
+                </h3>
+                <p class="text-muted mb-4" style="font-size: 13px;">
+                    Unlocking curriculum targets and checking in punctually earns you special status keys.
+                </p>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="achievement-badge-card" id="badgeEarly">
+                            <div class="badge-icon-box" style="color: var(--accent-warning);">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <div class="badge-title">Early Bird</div>
+                            <div class="badge-desc mt-1">Logged morning attendance before 8:45 AM three times.</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="achievement-badge-card badge-locked" id="badgeStreak">
+                            <div class="badge-icon-box" style="color: var(--accent-success);">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <div class="badge-title">Iron Attendance</div>
+                            <div class="badge-desc mt-1">Maintain 100% active attendance for a fortnight.</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="achievement-badge-card badge-locked" id="badgeComplete">
+                            <div class="badge-icon-box" style="color: var(--accent-secondary);">
+                                <i class="fas fa-crown"></i>
+                            </div>
+                            <div class="badge-title">All-Star Profile</div>
+                            <div class="badge-desc mt-1">Complete 100% of your account profile details.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Addon Hub & Future Addons -->
+        <div class="profile-tab-pane d-none" id="addonsPane">
+            <div class="card-premium p-4">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h3 class="font-space mb-0" style="font-size: 18px; font-weight: 700;">
+                        <i class="fas fa-cubes me-2 text-gradient"></i> Integrations Hub
+                    </h3>
+                    <span class="badge bg-success-glow text-success px-3 py-2" style="font-size: 11px;">2 Active Add-ons</span>
+                </div>
+                <p class="text-muted mb-4" style="font-size: 13px;">
+                    Link external applications to streamline notifications, track timetables, and auto-sync schedules.
+                </p>
+
+                <!-- Active Integrations -->
+                <div class="row g-3 mb-4">
+                    <!-- Google Calendar Sync -->
+                    <div class="col-md-6">
+                        <div class="p-3" style="background: var(--bg-glass); border: 1px solid var(--border-color); border-radius: 12px; height: 100%;">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fab fa-google text-danger" style="font-size: 22px;"></i>
+                                    <div style="font-weight: 700; font-size: 14px;">Google Calendar Sync</div>
+                                </div>
+                                <div id="syncIndicator">
+                                    <span class="badge bg-muted text-muted">Not Synced</span>
+                                </div>
+                            </div>
+                            <p class="text-muted" style="font-size: 12px; min-height: 36px; line-height: 1.5;">
+                                Auto-synchronizes your timetable schedule, tests, and homework reminders with your calendar.
+                            </p>
+                            <div class="form-check form-switch pt-2">
+                                <input class="form-check-input" type="checkbox" id="calendarSyncToggle" onchange="toggleCalendarSync(this)" style="cursor: pointer;">
+                                <label class="form-check-label text-secondary" style="font-size: 12px;" for="calendarSyncToggle">Synchronize Live Timetable</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- WhatsApp Alerts -->
+                    <div class="col-md-6">
+                        <div class="p-3" style="background: var(--bg-glass); border: 1px solid var(--border-color); border-radius: 12px; height: 100%;">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fab fa-whatsapp text-success" style="font-size: 22px;"></i>
+                                    <div style="font-weight: 700; font-size: 14px;">WhatsApp Alerts</div>
+                                </div>
+                                <div>
+                                    <span class="badge bg-success-glow text-success"><i class="fas fa-check me-1"></i> Configured</span>
+                                </div>
+                            </div>
+                            <p class="text-muted" style="font-size: 12px; min-height: 36px; line-height: 1.5;">
+                                Sends instant alerts when a class is rescheduled, canceled, or when attendance falls below 75%.
+                            </p>
+                            <div class="form-check form-switch pt-2">
+                                <input class="form-check-input" type="checkbox" id="whatsappAlertsToggle" style="cursor: pointer;" checked>
+                                <label class="form-check-label text-secondary" style="font-size: 12px;" for="whatsappAlertsToggle">Enable instant push text alerts</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Future Addon Hub -->
+                <h4 class="font-space mb-3" style="font-size: 15px; font-weight: 700;">
+                    <i class="fas fa-rocket me-2 text-accent-secondary"></i>Upcoming Future Add-ons (SIH Roadmap)
+                </h4>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="p-3" style="background: rgba(255,255,255,0.01); border: 1px dashed var(--border-color); border-radius: 12px; opacity: 0.85;">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="fas fa-brain text-accent-tertiary" style="font-size: 18px;"></i>
+                                <div style="font-weight: 700; font-size: 13px; color: var(--text-primary);">AI Attendance Predictor</div>
+                            </div>
+                            <p class="text-muted mb-0" style="font-size: 11px; line-height: 1.5;">
+                                Leverages Machine Learning models on historical timetable logs to warn students about potential attendance drops.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3" style="background: rgba(255,255,255,0.01); border: 1px dashed var(--border-color); border-radius: 12px; opacity: 0.85;">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="fas fa-map-marked-alt text-accent-secondary" style="font-size: 18px;"></i>
+                                <div style="font-weight: 700; font-size: 13px; color: var(--text-primary);">Geofenced SafeMark</div>
+                            </div>
+                            <p class="text-muted mb-0" style="font-size: 11px; line-height: 1.5;">
+                                Integrates browser Geolocation to restrict QR-code scanning strictly within the physical classroom coordinate grid.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Tab switcher script
+    function switchTab(tabId) {
+        document.querySelectorAll('.profile-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelectorAll('.profile-tab-pane').forEach(pane => {
+            pane.classList.add('d-none');
+        });
+        
+        const clickedBtn = document.querySelector(`[data-tab="${tabId}"]`);
+        if (clickedBtn) clickedBtn.classList.add('active');
+        
+        const activePane = document.getElementById(tabId);
+        if (activePane) activePane.classList.remove('d-none');
+    }
+
+    // Interactive avatar uploader uploader preview
+    const fileInput = document.getElementById('id_profile_picture');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const preview = document.getElementById('avatarPreview');
+                    const initials = document.getElementById('avatarInitials');
+                    
+                    if (preview) {
+                        preview.src = evt.target.result;
+                    } else if (initials) {
+                        // If preview image element wasn't rendered yet (no profile pic previously)
+                        const img = document.createElement('img');
+                        img.id = 'avatarPreview';
+                        img.src = evt.target.result;
+                        initials.parentNode.replaceChild(img, initials);
+                    }
+                    
+                    showToast('New profile photo chosen! Save changes to finalize.', 'success');
+                    calculateCompleteness();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    // Completeness score calculator
+    function calculateCompleteness() {
+        let score = 0;
+        const firstName = document.getElementById('id_first_name')?.value;
+        const lastName = document.getElementById('id_last_name')?.value;
+        const email = document.getElementById('id_email')?.value;
+        const phone = document.getElementById('id_phone')?.value;
+        const department = document.getElementById('id_department')?.value;
+        const hasPhoto = document.getElementById('avatarPreview') !== null;
+
+        if (firstName && firstName.trim() !== '') score += 15;
+        if (lastName && lastName.trim() !== '') score += 15;
+        if (email && email.trim() !== '') score += 20;
+        if (phone && phone.trim() !== '') score += 15;
+        if (department && department.trim() !== '') score += 15;
+        if (hasPhoto) score += 20;
+
+        updateCompletenessGauge(score);
+    }
+
+    function updateCompletenessGauge(percent) {
+        const circle = document.querySelector('.progress-circle');
+        if (!circle) return;
+        
+        const circumference = 2 * Math.PI * 15; // 2 * pi * r (r=15)
+        circle.style.strokeDasharray = `${circumference} ${circumference}`;
+        
+        const offset = circumference - (percent / 100) * circumference;
+        circle.style.strokeDashoffset = offset;
+        
+        const text = document.getElementById('completenessPercent');
+        if (text) text.textContent = percent + '%';
+        
+        const tips = document.getElementById('completenessTips');
+        const badgeComplete = document.getElementById('badgeComplete');
+        
+        if (percent === 100) {
+            if (tips) tips.textContent = 'All details loaded! Profile is 100% complete.';
+            if (badgeComplete) {
+                badgeComplete.classList.remove('badge-locked');
+                const box = badgeComplete.querySelector('.badge-icon-box');
+                if (box) box.style.boxShadow = '0 0 15px var(--accent-secondary)';
+            }
+        } else {
+            if (tips) tips.textContent = 'Add remaining details to reach 100% and unlock rewards.';
+            if (badgeComplete) badgeComplete.classList.add('badge-locked');
+        }
+    }
+
+    // Biometrics verification mockup
+    function simulateBiometricSetup() {
+        const scannerOverlay = document.getElementById('biometricScannerOverlay');
+        const scannerText = document.getElementById('scannerStatusText');
+        const fingerIcon = document.getElementById('fingerprintIcon');
+        const successIcon = document.getElementById('scanSuccessIcon');
+        const line = document.querySelector('.scanner-line');
+        
+        scannerOverlay.classList.remove('d-none');
+        scannerText.textContent = 'Mapping biometrics coordinates...';
+        fingerIcon.className = 'fas fa-fingerprint fa-3x text-accent-primary animate-pulse';
+        fingerIcon.classList.remove('d-none');
+        successIcon.classList.add('d-none');
+        if (line) line.style.display = 'block';
+
+        setTimeout(() => {
+            scannerText.textContent = 'Verifying hardware authentication integrity...';
+            
+            setTimeout(() => {
+                if (line) line.style.display = 'none';
+                fingerIcon.classList.add('d-none');
+                successIcon.classList.remove('d-none');
+                successIcon.className = 'fas fa-check-circle fa-4x text-success animate-bounce';
+                scannerText.textContent = 'Biometric ID registered successfully!';
+                
+                localStorage.setItem('biometricsEnabled', 'true');
+                
+                setTimeout(() => {
+                    scannerOverlay.classList.add('d-none');
+                    showToast('Biometric Quick Access registered!', 'success');
+                }, 1400);
+            }, 1400);
+        }, 1400);
+    }
+
+    // Terminate other active sessions helper
+    function terminateOtherSessions() {
+        const row = document.getElementById('mockSessionRow');
+        if (row) {
+            row.style.transition = 'opacity 0.5s';
+            row.style.opacity = '0';
+            setTimeout(() => {
+                row.remove();
+                showToast('All other session tokens revoked successfully.', 'success');
+            }, 500);
+        }
+    }
+
+    // Calendar sync mockup toggler
+    function toggleCalendarSync(checkbox) {
+        if (checkbox.checked) {
+            const modalEl = document.getElementById('calendarSyncModal');
+            if (modalEl) {
+                const bootstrapModal = new bootstrap.Modal(modalEl);
+                bootstrapModal.show();
+                
+                const syncStatus = document.getElementById('syncModalStatus');
+                syncStatus.innerHTML = '<i class="fas fa-spinner fa-spin me-2 text-accent-primary"></i> Contacting Google OAuth Gateways...';
+                
+                setTimeout(() => {
+                    syncStatus.innerHTML = '<i class="fas fa-spinner fa-spin me-2 text-accent-primary"></i> Mapping timetable scheduler events...';
+                    
+                    setTimeout(() => {
+                        syncStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-2"></i> Synced to Calendar successfully!</span>';
+                        localStorage.setItem('calendarSynced', 'true');
+                        
+                        const indicator = document.getElementById('syncIndicator');
+                        if (indicator) indicator.innerHTML = '<span class="badge bg-success-glow text-success"><i class="fas fa-sync fa-spin me-1"></i> Auto-Synced</span>';
+                        
+                        setTimeout(() => {
+                            bootstrapModal.hide();
+                            showToast('Curriculum timetable synced with Google Calendar!', 'success');
+                        }, 1200);
+                    }, 1400);
+                }, 1400);
+            }
+        } else {
+            localStorage.setItem('calendarSynced', 'false');
+            const indicator = document.getElementById('syncIndicator');
+            if (indicator) indicator.innerHTML = '<span class="badge bg-muted text-muted">Not Synced</span>';
+            showToast('Google Calendar timetable synchronization revoked.', 'info');
+        }
+    }
+
+    // On Load Initializations
+    document.addEventListener('DOMContentLoaded', () => {
+        // Real-time completeness events
+        const fields = ['id_first_name', 'id_last_name', 'id_email', 'id_phone', 'id_department'];
+        fields.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', calculateCompleteness);
+            }
+        });
+        calculateCompleteness();
+
+        // Restore biometrics check state
+        const bioEnabled = localStorage.getItem('biometricsEnabled') === 'true';
+        const bioToggle = document.getElementById('biometricsToggle');
+        if (bioToggle) {
+            bioToggle.checked = bioEnabled;
+            bioToggle.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    simulateBiometricSetup();
+                } else {
+                    localStorage.setItem('biometricsEnabled', 'false');
+                    showToast('Biometric access disabled.', 'info');
+                }
+            });
+        }
+
+        // Restore calendar sync status
+        const calendarSynced = localStorage.getItem('calendarSynced') === 'true';
+        const calendarToggle = document.getElementById('calendarSyncToggle');
+        if (calendarToggle) {
+            calendarToggle.checked = calendarSynced;
+            const indicator = document.getElementById('syncIndicator');
+            if (calendarSynced && indicator) {
+                indicator.innerHTML = '<span class="badge bg-success-glow text-success"><i class="fas fa-sync fa-spin me-1"></i> Auto-Synced</span>';
+            }
+        }
+    });
+</script>
 {% endblock %}
