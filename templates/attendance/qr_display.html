@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% block title %}QR Code - {{ class.subject.name }}{% endblock %}
+{% block breadcrumb %}Classes / <span style="color:var(--accent-primary)">QR Code</span>{% endblock %}
+
+{% block extra_css %}
+<style>
+    .qr-wrapper {
+        background: linear-gradient(135deg, rgba(108,99,255,0.1), rgba(0,212,255,0.1));
+        border: 2px solid var(--border-accent);
+        border-radius: 24px; padding: 40px; text-align: center;
+        position: relative; overflow: hidden;
+    }
+    .qr-wrapper::before {
+        content: ''; position: absolute; inset: -2px;
+        background: var(--gradient-primary); border-radius: 26px; z-index: -1;
+        animation: borderPulse 2s ease infinite;
+        opacity: 0.5;
+    }
+    @keyframes borderPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
+    .qr-img { border-radius: 12px; box-shadow: 0 0 60px rgba(108,99,255,0.3); }
+    .session-meta { background: var(--bg-glass); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px 20px; }
+    .live-count { font-family: 'Space Grotesk', sans-serif; font-size: 48px; font-weight: 800; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in-up">
+    <h1 class="page-title"><i class="fas fa-qrcode me-2 text-gradient"></i> Active QR Session</h1>
+    <p class="page-subtitle">{{ class.subject.name }} ({{ class.subject.code }}) · Show this QR code to students</p>
+</div>
+
+<div class="row g-4 justify-content-center">
+    <div class="col-lg-5">
+        <!-- QR Code Display -->
+        <div class="qr-wrapper fade-in-up text-center">
+            <div class="mb-4">
+                <span class="badge-premium badge-success" style="font-size: 13px; padding: 8px 16px;">
+                    <span class="pulse-dot me-2"></span> Session Active
+                </span>
+            </div>
+
+            <img src="data:image/png;base64,{{ qr_base64 }}"
+                 alt="Attendance QR Code" class="qr-img" style="width: 260px; height: 260px;">
+
+            <div class="mt-4">
+                <div style="font-size: 13px; color: var(--text-muted);">Session expires in</div>
+                <div id="sessionCountdown" style="font-size: 20px; font-weight: 700; margin-top: 4px;"></div>
+            </div>
+            
+            <hr class="divider">
+            
+            <!-- Shareable Joining Link -->
+            <div class="text-start form-premium">
+                <label class="form-label" style="font-size: 12px; color: var(--accent-secondary);"><i class="fas fa-share-nodes me-2"></i>Shareable Join Link & Details</label>
+                <div class="d-flex gap-2">
+                    <input type="text" id="shareLink" class="form-control form-control-sm" style="font-size: 12px; background: rgba(255,255,255,0.04);" readonly 
+                           value="{{ request.scheme }}://{{ request.get_host }}/attendance/mark/?session_id={{ session.session_id }}&class={{ class.name|urlencode }}&subject={{ class.subject.code|urlencode }}">
+                    <button type="button" class="btn btn-premium btn-primary-grad btn-sm" onclick="copyShareLink()">
+                        <i class="fas fa-copy" id="copyIcon"></i> Copy
+                    </button>
+                </div>
+                <small style="color: var(--text-muted); font-size: 11px; margin-top: 6px; display: block;">
+                    Paste this link into the student chat, group channel, or classroom feed.
+                </small>
+            </div>
+        </div>
+
+        <!-- Session Actions -->
+        <div class="mt-4 d-flex gap-3">
+            <form method="post" action="{% url 'close_session' session.session_id %}" class="flex-1">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-premium btn-danger-grad w-100" style="justify-content: center; padding: 12px;"
+                        onclick="return confirm('Close this session?')">
+                    <i class="fas fa-stop-circle"></i> Close Session
+                </button>
+            </form>
+            <a href="{% url 'session_detail' session.session_id %}" class="btn btn-premium btn-outline-premium" style="padding: 12px 20px;">
+                <i class="fas fa-list"></i> View List
+            </a>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <!-- Session Info -->
+        <div class="card-premium fade-in-up delay-1 mb-4">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-info-circle" style="color: var(--accent-secondary);"></i> Session Details
+                </div>
+            </div>
+            <div class="card-body-premium">
+                <div class="session-meta mb-3">
+                    <div class="row g-2" style="font-size: 14px;">
+                        <div class="col-6">
+                            <span style="color: var(--text-muted);">Class:</span>
+                            <div style="font-weight: 600;">{{ class.name }}</div>
+                        </div>
+                        <div class="col-6">
+                            <span style="color: var(--text-muted);">Subject:</span>
+                            <div style="font-weight: 600;">{{ class.subject.code }}</div>
+                        </div>
+                        <div class="col-6">
+                            <span style="color: var(--text-muted);">Date:</span>
+                            <div style="font-weight: 600;">{{ session.date }}</div>
+                        </div>
+                        <div class="col-6">
+                            <span style="color: var(--text-muted);">Duration:</span>
+                            <div style="font-weight: 600;">{{ duration }} minutes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Count -->
+        <div class="card-premium fade-in-up delay-2">
+            <div class="card-body-premium text-center" style="padding: 40px;">
+                <div style="color: var(--text-muted); font-size: 14px; margin-bottom: 8px;">
+                    <span class="pulse-dot me-2"></span> Live Attendance Count
+                </div>
+                <div class="live-count text-gradient" id="liveCount">
+                    {{ session.records.count }}
+                </div>
+                <div style="color: var(--text-muted); font-size: 14px; margin-top: 8px;">
+                    out of {{ class.students.count }} students
+                </div>
+                <div class="progress-premium mt-4">
+                    <div class="progress-bar-premium" id="liveProgressBar" style="
+                        width: {% if class.students.count > 0 %}{% widthratio session.records.count class.students.count 100 %}{% else %}0{% endif %}%;
+                        transition: width 0.5s ease;">
+                    </div>
+                </div>
+
+                <div class="mt-4" style="font-size: 13px; color: var(--text-muted);">
+                    Auto-refreshes every 5 seconds
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+startCountdown('{{ expires_at|date:"c" }}');
+autoRefreshSession('{{ session.session_id }}');
+
+// Live update progress bar
+setInterval(() => {
+    fetch('/api/session/{{ session.session_id }}/status/')
+        .then(r => r.json())
+        .then(data => {
+            const count = data.present_count;
+            const total = data.session ? {{ class.students.count }} : 1;
+            document.getElementById('liveCount').textContent = count;
+            const pct = total > 0 ? (count / total * 100) : 0;
+            document.getElementById('liveProgressBar').style.width = pct + '%';
+        }).catch(() => {});
+}, 5000);
+</script>
+{% endblock %}

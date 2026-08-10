@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load timetable_extras %}
+{% block title %}Timetable{% endblock %}
+{% block breadcrumb %}Dashboard / <span style="color:var(--accent-primary)">Timetable</span>{% endblock %}
+
+{% block extra_css %}
+<style>
+    .day-tab { cursor: pointer; padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 600;
+        background: var(--bg-glass); border: 1px solid var(--border-color); color: var(--text-secondary);
+        transition: all 0.2s; white-space: nowrap; }
+    .day-tab.active { background: var(--gradient-primary); color: white; border-color: transparent;
+        box-shadow: 0 4px 15px rgba(108,99,255,0.4); }
+    .day-tab:hover:not(.active) { border-color: var(--accent-primary); color: var(--accent-primary); }
+    .slot-time { font-size: 12px; color: var(--text-muted); width: 100px; flex-shrink: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in-up">
+    <h1 class="page-title"><i class="fas fa-clock me-2 text-gradient"></i> Weekly Timetable</h1>
+    <p class="page-subtitle">{{ today|date:"l, F j, Y" }}</p>
+</div>
+
+<!-- Day Tabs -->
+<div class="d-flex gap-2 flex-wrap mb-4 fade-in-up">
+    {% for day in days %}
+    <button class="day-tab {% if day == today_day %}active{% endif %}" onclick="showDay('{{ day }}', this)">
+        {{ day_labels|dict_get:day }}
+        {% if day == today_day %}<span style="display: inline-block; width: 6px; height: 6px; background: white; border-radius: 50%; margin-left: 4px; vertical-align: middle;"></span>{% endif %}
+    </button>
+    {% endfor %}
+</div>
+
+<!-- Timetable Grids -->
+{% for day in days %}
+<div id="day_{{ day }}" class="day-content {% if day != today_day %}d-none{% endif %}">
+    <div class="card-premium fade-in-up">
+        <div class="card-header-premium">
+            <div class="section-title mb-0">
+                <i class="fas fa-calendar-day" style="color: var(--accent-primary);"></i>
+                {{ day_labels|dict_get:day }}
+                {% if day == today_day %}<span class="badge-premium badge-success ms-2" style="font-size: 11px;">Today</span>{% endif %}
+            </div>
+            {% if day == today_day %}
+            <span style="font-size: 13px; color: var(--text-muted);">{{ timetable|dict_get:day|length }} classes</span>
+            {% endif %}
+        </div>
+        <div class="card-body-premium">
+            {% with slots=timetable|dict_get:day %}
+            {% if slots %}
+            <div class="timetable-grid">
+                {% for slot in slots %}
+                <div class="time-slot-card {{ slot.slot_type }}">
+                    <div class="slot-time">
+                        {{ slot.start_time|time:"g:i A" }}<br>
+                        <span style="color: var(--text-muted); font-size: 11px;">{{ slot.end_time|time:"g:i A" }}</span>
+                    </div>
+                    <div style="flex: 1;">
+                        {% if slot.slot_type == 'class' and slot.class_obj %}
+                        <div style="font-weight: 700; font-size: 15px;">{{ slot.class_obj.subject.name }}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">
+                            {{ slot.class_obj.subject.code }}
+                            {% if request.user.is_student %} · {{ slot.class_obj.teacher.get_full_name }}{% endif %}
+                        </div>
+                        {% elif slot.slot_type == 'free' %}
+                        <div style="font-weight: 700; font-size: 15px; color: var(--accent-success);">🎯 Free Period</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Use this time productively</div>
+                        {% elif slot.slot_type == 'lunch' %}
+                        <div style="font-weight: 700; font-size: 15px; color: var(--accent-warning);">🍽️ Lunch Break</div>
+                        {% elif slot.slot_type == 'lab' %}
+                        <div style="font-weight: 700; font-size: 15px; color: var(--accent-secondary);">🔬 Lab Session</div>
+                        {% if slot.class_obj %}<div style="font-size: 12px; color: var(--text-muted);">{{ slot.class_obj.subject.name }}</div>{% endif %}
+                        {% endif %}
+                    </div>
+                    <div style="text-align: right;">
+                        {% if slot.room_number %}
+                        <span class="badge-premium badge-info" style="font-size: 11px;">🏫 {{ slot.room_number }}</span>
+                        {% endif %}
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+                            {% widthratio slot.end_time|timeuntil:slot.start_time 1 1 %} hrs
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state" style="padding: 50px;">
+                <i class="fas fa-calendar-times"></i>
+                <h3>No Classes</h3>
+                <p>No classes scheduled for {{ day_labels|dict_get:day }}</p>
+            </div>
+            {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% if free_periods and request.user.is_student %}
+<div class="mt-4">
+    <div class="card-premium fade-in-up" style="border-color: rgba(0,230,118,0.3);">
+        <div class="card-header-premium">
+            <div class="section-title mb-0">
+                <i class="fas fa-lightbulb" style="color: var(--accent-success);"></i>
+                Today's Free Periods
+                <span class="badge-premium badge-success ms-2">{{ free_periods|length }}</span>
+            </div>
+            <a href="{% url 'daily_planner' %}" class="btn btn-premium btn-success-grad" style="padding: 8px 16px; font-size: 13px;">
+                <i class="fas fa-tasks"></i> Open Planner
+            </a>
+        </div>
+        <div class="card-body-premium">
+            <div class="row g-3">
+                {% for slot in free_periods %}
+                <div class="col-md-4">
+                    <div style="background: rgba(0,230,118,0.08); border: 1px solid rgba(0,230,118,0.2); border-radius: 12px; padding: 16px;">
+                        <div style="font-weight: 700; color: var(--accent-success);">⏰ {{ slot.start_time|time:"g:i A" }} – {{ slot.end_time|time:"g:i A" }}</div>
+                        <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Use for self-study or revision</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showDay(day, btn) {
+    document.querySelectorAll('.day-content').forEach(el => el.classList.add('d-none'));
+    document.querySelectorAll('.day-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('day_' + day).classList.remove('d-none');
+    btn.classList.add('active');
+}
+</script>
+{% endblock %}

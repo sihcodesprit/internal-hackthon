@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}Student Dashboard{% endblock %}
+{% block breadcrumb %}<i class="fas fa-home me-2"></i> Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in-up">
+    <h1 class="page-title">
+        Welcome back, {{ request.user.get_full_name|default:request.user.username }}!
+        <span style="font-size: 28px;">📚</span>
+    </h1>
+    <p class="page-subtitle">{{ today|date:"l, F j, Y" }} · Student Dashboard · Roll: {{ request.user.roll_number }}</p>
+</div>
+
+<!-- Active Sessions Alert -->
+{% if active_sessions %}
+<div class="card-premium mb-4 fade-in-up" style="border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.05);">
+    <div class="card-body-premium">
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="pulse-dot"></span>
+            <h3 class="mb-0" style="font-size: 16px; font-weight: 700; color: var(--accent-success);">
+                Active Session — Mark Your Attendance Now!
+            </h3>
+        </div>
+        {% for session in active_sessions %}
+        <div style="background: var(--bg-glass); border: 1px solid rgba(0,230,118,0.2); border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 16px;">
+            <div>
+                <div style="font-weight: 700;">{{ session.class_obj.subject.name }}</div>
+                <div style="font-size: 13px; color: var(--text-muted);">{{ session.class_obj.subject.code }} · Expires soon</div>
+            </div>
+            <a href="{% url 'mark_attendance' %}" class="btn btn-premium btn-success-grad ms-auto" style="padding: 8px 20px;">
+                <i class="fas fa-qrcode"></i> Mark Now
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Stats -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="stat-card fade-in-up delay-1">
+            <div class="stat-icon purple"><i class="fas fa-book-open"></i></div>
+            <div class="stat-value" data-count="{{ enrolled_classes.count }}">0</div>
+            <div class="stat-label">Enrolled Subjects</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card success fade-in-up delay-2">
+            <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-value" data-count="{{ recent_records.count }}">0</div>
+            <div class="stat-label">Sessions Attended</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card fade-in-up delay-3">
+            <div class="stat-icon cyan"><i class="fas fa-percentage"></i></div>
+            <div class="stat-value">
+                {% if attendance_stats %}
+                    {% with total=0 present=0 %}
+                    {{ attendance_stats|length }}
+                    {% endwith %}
+                {% else %}0{% endif %}
+            </div>
+            <div class="stat-label">Subjects Tracked</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card warning fade-in-up delay-4">
+            <div class="stat-icon yellow"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="stat-value" data-count="{% for s in attendance_stats %}{% if s.status == 'danger' %}{{ forloop.counter }}{% endif %}{% endfor %}|0">
+                {% with danger_count=0 %}
+                {% for s in attendance_stats %}{% if s.status == 'danger' %}{{ forloop.counter0|add:1 }}{% endif %}{% endfor %}
+                {% if not attendance_stats %}0{% endif %}
+                {% endwith %}
+            </div>
+            <div class="stat-label">Low Attendance</div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance by Subject -->
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card-premium fade-in-up">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-chart-bar" style="color: var(--accent-primary);"></i> Attendance Overview
+                </div>
+                <a href="{% url 'analytics' %}" style="font-size: 13px; color: var(--accent-primary);">Full Analytics</a>
+            </div>
+            <div class="card-body-premium">
+                {% if attendance_stats %}
+                {% for stat in attendance_stats %}
+                <div class="mb-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <div style="font-weight: 600; font-size: 15px;">{{ stat.class.subject.name }}</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">{{ stat.class.subject.code }} · {{ stat.present }}/{{ stat.total }} sessions</div>
+                        </div>
+                        <div class="text-end">
+                            <div style="font-size: 22px; font-weight: 800; font-family: 'Space Grotesk', sans-serif;
+                                color: {% if stat.status == 'safe' %}var(--accent-success){% elif stat.status == 'warning' %}var(--accent-warning){% else %}var(--accent-danger){% endif %};">
+                                {{ stat.percentage }}%
+                            </div>
+                            <span class="badge-premium {% if stat.status == 'safe' %}badge-success{% elif stat.status == 'warning' %}badge-warning{% else %}badge-danger{% endif %}">
+                                {% if stat.status == 'safe' %}✓ Safe{% elif stat.status == 'warning' %}⚠ Warning{% else %}✗ Critical{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="progress-premium">
+                        <div class="progress-bar-premium {{ stat.status }}" data-progress="{{ stat.percentage }}" style="width: 0%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-chart-bar"></i>
+                    <h3>No Data Yet</h3>
+                    <p>Enroll in classes to see attendance stats</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-lg-4">
+        <div class="card-premium fade-in-up delay-2 mb-4">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-bolt" style="color: var(--accent-warning);"></i> Quick Actions
+                </div>
+            </div>
+            <div class="card-body-premium">
+                <div class="d-grid gap-3">
+                    <a href="{% url 'mark_attendance' %}" class="btn btn-premium btn-primary-grad" style="justify-content: center; padding: 14px;">
+                        <i class="fas fa-qrcode fa-lg"></i> Scan & Mark Attendance
+                    </a>
+                    <a href="{% url 'timetable' %}" class="btn btn-premium btn-outline-premium" style="justify-content: center; padding: 12px;">
+                        <i class="fas fa-clock"></i> View Timetable
+                    </a>
+                    <a href="{% url 'daily_planner' %}" class="btn btn-premium btn-outline-premium" style="justify-content: center; padding: 12px;">
+                        <i class="fas fa-tasks"></i> Daily Planner
+                    </a>
+                    <a href="{% url 'analytics' %}" class="btn btn-premium btn-outline-premium" style="justify-content: center; padding: 12px;">
+                        <i class="fas fa-chart-line"></i> Analytics
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card-premium fade-in-up delay-3">
+            <div class="card-header-premium">
+                <div class="section-title mb-0" style="font-size: 14px;">
+                    <i class="fas fa-history" style="color: var(--accent-secondary);"></i> Recent Activity
+                </div>
+            </div>
+            <div class="card-body-premium" style="padding: 12px;">
+                {% if recent_records %}
+                {% for record in recent_records|slice:":6" %}
+                <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 4px; transition: all 0.2s;"
+                     onmouseover="this.style.background='var(--bg-glass)'" onmouseout="this.style.background='transparent'">
+                    <div style="width: 8px; height: 8px; border-radius: 50%; background: {% if record.status == 'present' %}var(--accent-success){% else %}var(--accent-danger){% endif %}; flex-shrink:0;"></div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            {{ record.session.class_obj.subject.name }}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-muted);">{{ record.marked_at|date:"M d, g:i a" }}</div>
+                    </div>
+                    <span class="badge-premium {% if record.status == 'present' %}badge-success{% else %}badge-danger{% endif %}" style="font-size: 10px;">
+                        {{ record.status|title }}
+                    </span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
+                    No recent activity
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

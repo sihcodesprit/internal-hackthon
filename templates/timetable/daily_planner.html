@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% block title %}Daily Planner{% endblock %}
+{% block breadcrumb %}Dashboard / <span style="color:var(--accent-primary)">Daily Planner</span>{% endblock %}
+
+{% block extra_css %}
+<style>
+    .task-card {
+        background: var(--bg-glass);
+        border: 1px solid var(--border-color);
+        border-radius: 12px; padding: 16px 18px;
+        display: flex; align-items: flex-start; gap: 14px;
+        transition: all 0.3s; cursor: pointer;
+    }
+    .task-card:hover { background: var(--bg-glass-hover); border-color: var(--border-accent); transform: translateX(4px); }
+    .task-card.completed { opacity: 0.6; text-decoration: line-through; }
+    .task-check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--border-accent);
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; transition: all 0.2s; }
+    .task-card.completed .task-check { background: var(--accent-success); border-color: var(--accent-success); color: white; }
+    .category-badge { font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .cat-study { background: rgba(108,99,255,0.15); color: var(--accent-primary); }
+    .cat-revision { background: rgba(0,212,255,0.15); color: var(--accent-secondary); }
+    .cat-assignment { background: rgba(255,107,157,0.15); color: var(--accent-tertiary); }
+    .cat-project { background: rgba(255,215,64,0.15); color: var(--accent-warning); }
+    .cat-reading { background: rgba(0,230,118,0.15); color: var(--accent-success); }
+    .cat-practice { background: rgba(255,82,82,0.15); color: var(--accent-danger); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between fade-in-up">
+    <div>
+        <h1 class="page-title"><i class="fas fa-tasks me-2 text-gradient"></i> Daily Planner</h1>
+        <p class="page-subtitle">{{ today|date:"l, F j, Y" }} · Personalized Academic Plan</p>
+    </div>
+    <div style="text-align: right;">
+        <div style="font-size: 14px; color: var(--text-muted);">Tasks completed</div>
+        <div style="font-size: 28px; font-weight: 800; font-family: 'Space Grotesk', sans-serif; color: var(--accent-success);">
+            {{ completed_tasks.count }}/{{ tasks.count }}
+        </div>
+    </div>
+</div>
+
+<form method="post" id="plannerForm">
+    {% csrf_token %}
+    <div class="row g-4">
+        <!-- Task List -->
+        <div class="col-lg-8">
+            <!-- Free Periods Notice -->
+            {% if free_slots %}
+            <div class="card-premium mb-4" style="border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.04);">
+                <div class="card-body-premium">
+                    <div class="section-title">
+                        <i class="fas fa-lightbulb" style="color: var(--accent-success);"></i>
+                        You have {{ free_slots|length }} free period{{ free_slots|length|pluralize }} today!
+                    </div>
+                    <div class="d-flex gap-3 flex-wrap">
+                        {% for slot in free_slots %}
+                        <div style="background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.2); border-radius: 8px; padding: 8px 14px; font-size: 13px;">
+                            ⏰ {{ slot.start_time|time:"g:i A" }} – {{ slot.end_time|time:"g:i A" }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card-premium fade-in-up">
+                <div class="card-header-premium">
+                    <div class="section-title mb-0">
+                        <i class="fas fa-list-check" style="color: var(--accent-primary);"></i>
+                        Suggested Tasks for Today
+                    </div>
+                    <span style="font-size: 13px; color: var(--text-muted);">Click to mark complete</span>
+                </div>
+                <div class="card-body-premium">
+                    {% if tasks %}
+                    <div id="taskList">
+                        {% for task in tasks %}
+                        <div class="task-card mb-3 {% if task in completed_tasks %}completed{% endif %}"
+                             id="taskCard_{{ task.id }}"
+                             onclick="toggleTask({{ task.id }}, this)">
+                            <div class="task-check" id="check_{{ task.id }}">
+                                {% if task in completed_tasks %}<i class="fas fa-check" style="font-size: 12px;"></i>{% endif %}
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                    <div style="font-weight: 700; font-size: 15px;">{{ task.title }}</div>
+                                    <span class="category-badge cat-{{ task.category }}">{{ task.category }}</span>
+                                    {% if task.priority == 3 %}
+                                    <span style="color: var(--accent-danger); font-size: 12px;" title="High Priority">🔥</span>
+                                    {% elif task.priority == 2 %}
+                                    <span style="color: var(--accent-warning); font-size: 12px;" title="Medium Priority">⚡</span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">{{ task.description }}</div>
+                                <div style="font-size: 12px; color: var(--text-muted);">
+                                    ⏱ {{ task.duration_minutes }} minutes
+                                    {% if task.subject %} · 📚 {{ task.subject.name }}{% endif %}
+                                    {% if task.resources_link %}
+                                    · <a href="{{ task.resources_link }}" target="_blank" style="color: var(--accent-primary);">📖 Resources</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <h3>No Tasks Suggested</h3>
+                        <p>Enroll in classes to get personalized task suggestions</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar: Today's Schedule + Notes -->
+        <div class="col-lg-4">
+            <!-- Today's Schedule -->
+            {% if today_slots %}
+            <div class="card-premium fade-in-up delay-2 mb-4">
+                <div class="card-header-premium">
+                    <div class="section-title mb-0" style="font-size: 14px;">
+                        <i class="fas fa-clock" style="color: var(--accent-secondary);"></i> Today's Schedule
+                    </div>
+                </div>
+                <div class="card-body-premium" style="padding: 12px;">
+                    {% for slot in today_slots %}
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; border-left: 3px solid {% if slot.slot_type == 'free' %}var(--accent-success){% elif slot.slot_type == 'lunch' %}var(--accent-warning){% else %}var(--accent-primary){% endif %}; background: var(--bg-glass); margin-bottom: 8px;">
+                        <div style="font-size: 11px; color: var(--text-muted); width: 60px; flex-shrink: 0;">{{ slot.start_time|time:"g:i A" }}</div>
+                        <div style="font-size: 13px; font-weight: 600;">
+                            {% if slot.class_obj %}{{ slot.class_obj.subject.code }}{% else %}{{ slot.get_slot_type_display }}{% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Progress Summary -->
+            <div class="card-premium fade-in-up delay-3 mb-4">
+                <div class="card-body-premium text-center" style="padding: 30px;">
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Today's Progress</div>
+                    {% if tasks.count > 0 %}
+                    {% widthratio completed_tasks.count tasks.count 100 as pct %}
+                    <div style="font-size: 42px; font-weight: 800; font-family: 'Space Grotesk', sans-serif; color: var(--accent-success);">{{ pct }}%</div>
+                    <div class="progress-premium mt-3">
+                        <div class="progress-bar-premium success" data-progress="{{ pct }}" style="width: 0%"></div>
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-muted); margin-top: 12px;">{{ completed_tasks.count }} of {{ tasks.count }} tasks done</div>
+                    {% else %}
+                    <div style="font-size: 42px; font-weight: 800; color: var(--text-muted);">—</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="card-premium fade-in-up delay-4">
+                <div class="card-header-premium">
+                    <div class="section-title mb-0" style="font-size: 14px;">
+                        <i class="fas fa-sticky-note" style="color: var(--accent-warning);"></i> My Notes
+                    </div>
+                </div>
+                <div class="card-body-premium form-premium">
+                    <textarea name="notes" id="plannerNotes" class="form-control"
+                              placeholder="Add your own notes for today..." rows="4"
+                              style="resize: vertical;">{{ planner.custom_notes }}</textarea>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-premium btn-primary-grad w-100 mt-3" style="justify-content: center; padding: 14px;">
+                <i class="fas fa-save"></i> Save Planner
+            </button>
+        </div>
+    </div>
+
+    <!-- Hidden checkboxes for completed tasks -->
+    <div id="completedInputs"></div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const completedIds = new Set([{% for t in completed_tasks %}{{ t.id }}{% if not forloop.last %},{% endif %}{% endfor %}]);
+
+function toggleTask(id, card) {
+    if (completedIds.has(id)) {
+        completedIds.delete(id);
+        card.classList.remove('completed');
+        document.getElementById('check_' + id).innerHTML = '';
+    } else {
+        completedIds.add(id);
+        card.classList.add('completed');
+        document.getElementById('check_' + id).innerHTML = '<i class="fas fa-check" style="font-size:12px;"></i>';
+    }
+    updateHiddenInputs();
+    updateProgress();
+}
+
+function updateHiddenInputs() {
+    const container = document.getElementById('completedInputs');
+    container.innerHTML = '';
+    completedIds.forEach(id => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = 'completed_tasks';
+        inp.value = id;
+        container.appendChild(inp);
+    });
+}
+
+function updateProgress() {
+    const total = {{ tasks.count }};
+    const done = completedIds.size;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    document.querySelectorAll('.progress-bar-premium.success[data-progress]').forEach(bar => {
+        bar.style.width = pct + '%';
+    });
+}
+
+updateHiddenInputs();
+</script>
+{% endblock %}

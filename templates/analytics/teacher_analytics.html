@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}Analytics Dashboard{% endblock %}
+{% block breadcrumb %}Dashboard / <span style="color:var(--accent-primary)">Analytics</span>{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in-up">
+    <h1 class="page-title"><i class="fas fa-chart-bar me-2 text-gradient"></i> Analytics Dashboard</h1>
+    <p class="page-subtitle">Comprehensive attendance insights and trends</p>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4 col-6">
+        <div class="stat-card fade-in-up delay-1">
+            <div class="stat-icon purple"><i class="fas fa-chalkboard-teacher"></i></div>
+            <div class="stat-value" data-count="{{ total_classes }}">0</div>
+            <div class="stat-label">Total Classes</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-6">
+        <div class="stat-card success fade-in-up delay-2">
+            <div class="stat-icon green"><i class="fas fa-users"></i></div>
+            <div class="stat-value" data-count="{{ total_students }}">0</div>
+            <div class="stat-label">Total Students</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-6">
+        <div class="stat-card fade-in-up delay-3">
+            <div class="stat-icon cyan"><i class="fas fa-calendar-check"></i></div>
+            <div class="stat-value" data-count="{{ total_sessions_today }}">0</div>
+            <div class="stat-label">Sessions Today</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Attendance Trend Chart -->
+    <div class="col-lg-8">
+        <div class="card-premium fade-in-up">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-chart-line" style="color: var(--accent-primary);"></i> 14-Day Attendance Trend
+                </div>
+            </div>
+            <div class="card-body-premium">
+                <canvas id="trendChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Summary -->
+    <div class="col-lg-4">
+        <div class="card-premium fade-in-up delay-2">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-table" style="color: var(--accent-secondary);"></i> Class Summary
+                </div>
+            </div>
+            <div class="card-body-premium" style="padding: 0;">
+                {% for item in class_summary %}
+                <div style="padding: 14px 20px; border-bottom: 1px solid var(--border-color);">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <div style="font-weight: 600; font-size: 14px;">{{ item.class.subject.name }}</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">{{ item.students }} students · {{ item.sessions }} sessions</div>
+                        </div>
+                        <div style="font-size: 20px; font-weight: 800; font-family: 'Space Grotesk', sans-serif;
+                            color: {% if item.avg_attendance >= 75 %}var(--accent-success){% elif item.avg_attendance >= 60 %}var(--accent-warning){% else %}var(--accent-danger){% endif %};">
+                            {{ item.avg_attendance }}%
+                        </div>
+                    </div>
+                    <div class="progress-premium">
+                        <div class="progress-bar-premium {% if item.avg_attendance >= 75 %}success{% elif item.avg_attendance >= 60 %}warning{% else %}danger{% endif %}"
+                             data-progress="{{ item.avg_attendance }}" style="width: 0%"></div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state" style="padding: 40px;">
+                    <i class="fas fa-chart-bar"></i>
+                    <h3>No Data</h3>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Class Bar Chart -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card-premium fade-in-up">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-chart-bar" style="color: var(--accent-tertiary);"></i> Class-Wise Attendance %
+                </div>
+            </div>
+            <div class="card-body-premium">
+                <canvas id="classBarChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Attendance Alert -->
+    <div class="col-lg-6">
+        <div class="card-premium fade-in-up delay-2">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-exclamation-triangle" style="color: var(--accent-danger);"></i> Low Attendance Alert
+                    <span class="badge-premium badge-danger ms-2">Below 75%</span>
+                </div>
+            </div>
+            <div class="card-body-premium" style="padding: 0;">
+                {% if low_attendance %}
+                <div style="overflow-y: auto; max-height: 320px;">
+                    {% for item in low_attendance %}
+                    <div style="padding: 12px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color);">
+                        <div class="avatar-placeholder" style="width: 36px; height: 36px; font-size: 12px; flex-shrink: 0;">
+                            {{ item.student.first_name|first }}{{ item.student.last_name|first }}
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; font-size: 14px;">{{ item.student.get_full_name }}</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">{{ item.class.subject.name }} · {{ item.student.roll_number }}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 18px; font-weight: 800; color: var(--accent-danger);">{{ item.percentage }}%</div>
+                            <span class="badge-premium badge-danger" style="font-size: 10px;">Critical</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 40px;">
+                    <i class="fas fa-trophy" style="color: var(--accent-success);"></i>
+                    <h3 style="color: var(--accent-success);">Excellent!</h3>
+                    <p>All students are above 75% attendance</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Trend chart data
+const trendLabels = {{ daily_trend|safe }}.map(d => {
+    const dt = new Date(d.date);
+    return dt.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+});
+const trendData = {{ daily_trend|safe }}.map(d => d.percentage);
+createLineChart(document.getElementById('trendChart'), trendLabels, trendData, 'Attendance %');
+
+// Bar chart
+const classLabels = {{ class_summary|safe }}.map(c => c.class__subject__name || 'Subject');
+const classData = {{ class_summary|safe }}.map(c => c.avg_attendance);
+
+// Build from template data
+const classLabelsDom = [{% for item in class_summary %}'{{ item.class.subject.name }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+const classDataDom = [{% for item in class_summary %}{{ item.avg_attendance }}{% if not forloop.last %},{% endif %}{% endfor %}];
+createBarChart(document.getElementById('classBarChart'), classLabelsDom, classDataDom);
+</script>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% block title %}Session Detail{% endblock %}
+{% block breadcrumb %}History / <span style="color:var(--accent-primary)">Session Detail</span>{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in-up d-flex align-items-start justify-content-between">
+    <div>
+        <h1 class="page-title"><i class="fas fa-clipboard-list me-2 text-gradient"></i> Session Report</h1>
+        <p class="page-subtitle">{{ session.class_obj.subject.name }} · {{ session.date }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'export_excel' session.session_id %}" class="btn btn-premium btn-success-grad" style="padding: 10px 18px; font-size: 13px;">
+            <i class="fas fa-file-excel"></i> Excel
+        </a>
+        <a href="{% url 'export_pdf' session.session_id %}" class="btn btn-premium btn-primary-grad" style="padding: 10px 18px; font-size: 13px;">
+            <i class="fas fa-file-pdf"></i> PDF
+        </a>
+        {% if session.status == 'active' %}
+        <form method="post" action="{% url 'close_session' session.session_id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-premium btn-danger-grad" style="padding: 10px 18px; font-size: 13px;">
+                <i class="fas fa-stop-circle"></i> Close
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card success fade-in-up delay-1">
+            <div class="stat-icon green"><i class="fas fa-user-check"></i></div>
+            <div class="stat-value" data-count="{{ present_count }}">0</div>
+            <div class="stat-label">Present</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card danger fade-in-up delay-2">
+            <div class="stat-icon" style="background: rgba(255,82,82,0.15); color: var(--accent-danger);">
+                <i class="fas fa-user-times"></i>
+            </div>
+            <div class="stat-value" data-count="{{ absent_count }}">0</div>
+            <div class="stat-label">Absent</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card fade-in-up delay-3">
+            <div class="stat-icon purple"><i class="fas fa-users"></i></div>
+            <div class="stat-value" data-count="{{ total_students }}">0</div>
+            <div class="stat-label">Total Enrolled</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card fade-in-up delay-4">
+            <div class="stat-icon cyan"><i class="fas fa-percentage"></i></div>
+            <div class="stat-value">{{ attendance_pct }}%</div>
+            <div class="stat-label">Attendance Rate</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Present Students -->
+    <div class="col-lg-7">
+        <div class="card-premium fade-in-up">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-check-circle" style="color: var(--accent-success);"></i> Present Students
+                    <span class="badge-premium badge-success ms-2">{{ present_count }}</span>
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="table-premium w-100">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Student</th>
+                            <th>Roll No</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr>
+                            <td style="color: var(--text-muted);">{{ forloop.counter }}</td>
+                            <td>
+                                <div style="font-weight: 600;">{{ record.student.get_full_name }}</div>
+                                <div style="font-size: 12px; color: var(--text-muted);">{{ record.student.email }}</div>
+                            </td>
+                            <td><code style="color: var(--accent-secondary);">{{ record.student.roll_number }}</code></td>
+                            <td style="font-size: 13px;">{{ record.marked_at|time:"h:i A" }}</td>
+                            <td><span class="badge-premium badge-success"><i class="fas fa-check me-1"></i>Present</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center" style="padding: 30px; color: var(--text-muted);">No attendance records yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Absent Students + Summary -->
+    <div class="col-lg-5">
+        <div class="card-premium fade-in-up delay-2 mb-4">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-times-circle" style="color: var(--accent-danger);"></i> Absent Students
+                    <span class="badge-premium badge-danger ms-2">{{ absent_count }}</span>
+                </div>
+            </div>
+            <div class="card-body-premium" style="padding: 0;">
+                {% for student in absent_students %}
+                <div style="padding: 12px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color);">
+                    <div class="avatar-placeholder" style="width: 36px; height: 36px; font-size: 12px;">
+                        {{ student.first_name|first }}{{ student.last_name|first }}
+                    </div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 14px;">{{ student.get_full_name }}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">{{ student.roll_number }}</div>
+                    </div>
+                    <span class="badge-premium badge-danger ms-auto"><i class="fas fa-times me-1"></i>Absent</span>
+                </div>
+                {% empty %}
+                <div class="empty-state" style="padding: 30px;">
+                    <i class="fas fa-trophy"></i>
+                    <h3>Full Attendance!</h3>
+                    <p>All students are present</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Donut Chart -->
+        <div class="card-premium fade-in-up delay-3">
+            <div class="card-body-premium text-center">
+                <div class="section-title justify-content-center">
+                    <i class="fas fa-chart-pie" style="color: var(--accent-primary);"></i> Attendance Distribution
+                </div>
+                <canvas id="attendancePie" width="200" height="200" style="max-width: 180px;"></canvas>
+                <div class="d-flex justify-content-center gap-4 mt-3">
+                    <div><span style="background: var(--accent-success); width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px;"></span>Present</div>
+                    <div><span style="background: var(--accent-danger); width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px;"></span>Absent</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const pieCanvas = document.getElementById('attendancePie');
+new Chart(pieCanvas, {
+    type: 'doughnut',
+    data: {
+        labels: ['Present', 'Absent'],
+        datasets: [{
+            data: [{{ present_count }}, {{ absent_count }}],
+            backgroundColor: ['rgba(0,230,118,0.8)', 'rgba(255,82,82,0.8)'],
+            borderWidth: 0,
+            hoverOffset: 6,
+        }]
+    },
+    options: {
+        cutout: '70%',
+        plugins: { legend: { display: false } },
+        animation: { duration: 1200, easing: 'easeInOutQuart' }
+    }
+});
+</script>
+{% endblock %}

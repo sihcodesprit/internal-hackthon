@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Attendance History{% endblock %}
+{% block breadcrumb %}Dashboard / <span style="color:var(--accent-primary)">History</span>{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in-up">
+    <h1 class="page-title"><i class="fas fa-history me-2 text-gradient"></i> Attendance Sessions History</h1>
+    <p class="page-subtitle">All attendance sessions you have created</p>
+</div>
+
+<div class="card-premium fade-in-up">
+    <div style="overflow-x: auto;">
+        <table class="table-premium w-100">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Class & Subject</th>
+                    <th>Students</th>
+                    <th>Present</th>
+                    <th>Attendance %</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in sessions %}
+                {% with total=session.class_obj.students.count present=session.records.count %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 600;">{{ session.date }}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">{{ session.start_time|time:"g:i A" }}</div>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600;">{{ session.class_obj.subject.name }}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">{{ session.class_obj.name }}</div>
+                    </td>
+                    <td>{{ total }}</td>
+                    <td style="color: var(--accent-success); font-weight: 700;">{{ present }}</td>
+                    <td>
+                        {% if total > 0 %}
+                        {% widthratio present total 100 as pct %}
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="progress-premium" style="width: 60px; height: 5px;">
+                                <div class="progress-bar-premium {% if pct >= 75 %}success{% elif pct >= 60 %}warning{% else %}danger{% endif %}" style="width: {{ pct }}%"></div>
+                            </div>
+                            <span>{{ pct }}%</span>
+                        </div>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <span class="badge-premium {% if session.status == 'active' %}badge-success{% elif session.status == 'expired' %}badge-warning{% else %}badge-purple{% endif %}">
+                            {{ session.status|title }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'session_detail' session.session_id %}" class="btn btn-premium btn-outline-premium" style="padding: 6px 12px; font-size: 12px;">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'export_excel' session.session_id %}" class="btn btn-premium btn-success-grad" style="padding: 6px 12px; font-size: 12px;" title="Export Excel">
+                                <i class="fas fa-file-excel"></i>
+                            </a>
+                            <a href="{% url 'export_pdf' session.session_id %}" class="btn btn-premium btn-primary-grad" style="padding: 6px 12px; font-size: 12px;" title="Export PDF">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr><td colspan="7" class="text-center" style="padding: 60px; color: var(--text-muted);">
+                    <i class="fas fa-calendar-times" style="font-size: 32px; display: block; margin-bottom: 12px; opacity: 0.4;"></i>
+                    No attendance sessions yet
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

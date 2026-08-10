@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Teacher Dashboard{% endblock %}
+{% block breadcrumb %}<i class="fas fa-home me-2"></i> Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header fade-in-up">
+    <h1 class="page-title">
+        Good {% if request.user.first_name %}morning{% endif %}, {{ request.user.get_full_name|default:request.user.username }}!
+        <span style="font-size: 28px;">👋</span>
+    </h1>
+    <p class="page-subtitle">{{ today|date:"l, F j, Y" }} · Teacher Dashboard</p>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="stat-card fade-in-up delay-1">
+            <div class="stat-icon purple"><i class="fas fa-chalkboard-teacher"></i></div>
+            <div class="stat-value" data-count="{{ total_classes }}">0</div>
+            <div class="stat-label">Total Classes</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card success fade-in-up delay-2">
+            <div class="stat-icon green"><i class="fas fa-users"></i></div>
+            <div class="stat-value" data-count="{{ total_students }}">0</div>
+            <div class="stat-label">Total Students</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card fade-in-up delay-3">
+            <div class="stat-icon cyan"><i class="fas fa-calendar-day"></i></div>
+            <div class="stat-value" data-count="{{ today_sessions.count }}">0</div>
+            <div class="stat-label">Today's Sessions</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card warning fade-in-up delay-4">
+            <div class="stat-icon yellow"><i class="fas fa-broadcast-tower"></i></div>
+            <div class="stat-value" data-count="{{ active_sessions.count }}">0</div>
+            <div class="stat-label">Active Sessions</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- My Classes -->
+    <div class="col-lg-7">
+        <div class="card-premium fade-in-up">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-chalkboard" style="color: var(--accent-primary);"></i> My Classes
+                </div>
+                <a href="{% url 'class_create' %}" class="btn btn-premium btn-primary-grad" style="padding: 8px 18px; font-size: 13px;">
+                    <i class="fas fa-plus"></i> New Class
+                </a>
+            </div>
+            <div class="card-body-premium" style="padding: 0;">
+                {% if classes %}
+                <table class="table-premium w-100">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Section</th>
+                            <th>Students</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cls in classes %}
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600;">{{ cls.subject.name }}</div>
+                                <div style="font-size: 12px; color: var(--text-muted);">{{ cls.subject.code }}</div>
+                            </td>
+                            <td>
+                                <span class="badge-premium badge-info">Y{{ cls.year }}-{{ cls.section }}</span>
+                            </td>
+                            <td>
+                                <span style="font-weight: 600;">{{ cls.students.count }}</span>
+                                <span style="color: var(--text-muted); font-size: 12px;"> enrolled</span>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <form method="post" action="{% url 'generate_qr' cls.pk %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="duration" value="15">
+                                        <button type="submit" class="btn btn-premium btn-success-grad" style="padding: 6px 14px; font-size: 12px;">
+                                            <i class="fas fa-qrcode"></i> QR
+                                        </button>
+                                    </form>
+                                    <a href="{% url 'class_detail' cls.pk %}" class="btn btn-premium btn-outline-premium" style="padding: 6px 14px; font-size: 12px;">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                    <h3>No Classes Yet</h3>
+                    <p>Create your first class to get started</p>
+                    <a href="{% url 'class_create' %}" class="btn btn-premium btn-primary-grad mt-3">
+                        <i class="fas fa-plus"></i> Create Class
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Sessions -->
+    <div class="col-lg-5">
+        <div class="card-premium fade-in-up delay-2">
+            <div class="card-header-premium">
+                <div class="section-title mb-0">
+                    <i class="fas fa-history" style="color: var(--accent-secondary);"></i> Recent Sessions
+                </div>
+                <a href="{% url 'attendance_history' %}" style="font-size: 13px; color: var(--accent-primary);">View All</a>
+            </div>
+            <div class="card-body-premium">
+                {% if recent_sessions %}
+                {% for session in recent_sessions %}
+                <a href="{% url 'session_detail' session.session_id %}" class="text-decoration-none">
+                    <div class="session-info-card mb-3" style="cursor: pointer;">
+                        <div style="
+                            width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+                            background: {% if session.status == 'active' %}rgba(0,230,118,0.15){% elif session.status == 'expired' %}rgba(255,215,64,0.15){% else %}rgba(108,99,255,0.15){% endif %};
+                            display: flex; align-items: center; justify-content: center;
+                            color: {% if session.status == 'active' %}var(--accent-success){% elif session.status == 'expired' %}var(--accent-warning){% else %}var(--accent-primary){% endif %};
+                            font-size: 18px;">
+                            <i class="fas fa-{% if session.status == 'active' %}broadcast-tower{% elif session.status == 'expired' %}clock{% else %}check-circle{% endif %}"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; font-size: 14px;">{{ session.class_obj.subject.name }}</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">{{ session.date }} · {{ session.records.count }} present</div>
+                        </div>
+                        <span class="badge-premium {% if session.status == 'active' %}badge-success{% elif session.status == 'expired' %}badge-warning{% else %}badge-purple{% endif %}">
+                            {{ session.status|title }}
+                        </span>
+                    </div>
+                </a>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state" style="padding: 30px;">
+                    <i class="fas fa-calendar-times"></i>
+                    <h3>No Sessions</h3>
+                    <p>Generate a QR code to start a session</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
