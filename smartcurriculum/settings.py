@@ -2,6 +2,8 @@
 import os
 from pathlib import Path
 
+import dj_database_url
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get(
@@ -67,9 +69,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'smartcurriculum.wsgi.application'
 
-if os.environ.get('DATABASE_URL'):
-    import dj_database_url
-    DATABASES = {'default': dj_database_url.parse(os.environ['DATABASE_URL'], conn_max_age=600)}
+db_url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL') or os.environ.get('POSTGRES_URL_NON_POOLING')
+if db_url:
+    DATABASES = {'default': dj_database_url.parse(db_url, conn_max_age=600)}
 else:
     DATABASES = {
         'default': {
