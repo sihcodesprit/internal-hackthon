@@ -130,23 +130,27 @@ class Command(BaseCommand):
         for cls in classes[:3]:
             for i in range(10):
                 sess_date = today - timedelta(days=i + 1)
-                session, created = AttendanceSession.objects.get_or_create(
-                    class_obj=cls, date=sess_date,
-                    defaults={
-                        'teacher': cls.teacher,
-                        'start_time': time(9, 0),
-                        'status': 'closed',
-                        'expires_at': timezone.now() - timedelta(hours=1),
-                    }
-                )
-                if created:
+                session = AttendanceSession.objects.filter(
+                    class_obj=cls, date=sess_date
+                ).first()
+                if session is None:
+                    session = AttendanceSession.objects.create(
+                        class_obj=cls, date=sess_date,
+                        teacher=cls.teacher,
+                        start_time=time(9, 0),
+                        status='closed',
+                        expires_at=timezone.now() - timedelta(hours=1),
+                    )
                     session_count += 1
-                    for student in cls.students.all():
-                        # Randomize attendance (70-95% presence)
-                        if random.random() < 0.82:
-                            AttendanceRecord.objects.get_or_create(
+                for student in cls.students.all():
+                    # Randomize attendance (70-95% presence)
+                    if random.random() < 0.82:
+                        if not AttendanceRecord.objects.filter(
+                            session=session, student=student
+                        ).exists():
+                            AttendanceRecord.objects.create(
                                 session=session, student=student,
-                                defaults={'status': 'present'}
+                                status='present'
                             )
                             record_count += 1
         self.stdout.write(f'  [+] {session_count} sessions, {record_count} attendance records')
