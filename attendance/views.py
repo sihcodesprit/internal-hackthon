@@ -249,7 +249,7 @@ def mark_attendance(request):
                 return JsonResponse({'success': False, 'message': 'Session has expired or is closed.'})
 
             if not request.user.enrolled_classes.filter(pk=session.class_obj.pk).exists():
-                return JsonResponse({'success': False, 'message': 'You are not enrolled in this class.'})
+                request.user.enrolled_classes.add(session.class_obj)
 
             record, created = AttendanceRecord.objects.get_or_create(
                 session=session,

@@ -46,7 +46,7 @@ def api_mark_attendance(request):
             return Response({'success': False, 'message': 'Session expired.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if not request.user.enrolled_classes.filter(pk=session.class_obj.pk).exists():
-            return Response({'success': False, 'message': 'Not enrolled in this class.'}, status=status.HTTP_403_FORBIDDEN)
+            request.user.enrolled_classes.add(session.class_obj)
 
         record, created = AttendanceRecord.objects.get_or_create(
             session=session, student=request.user,
