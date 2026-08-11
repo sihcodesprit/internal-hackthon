@@ -10,7 +10,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
-from django.core.files.base import ContentFile
 from django.db.models import Count, Q
 from django.views.decorators.csrf import csrf_exempt
 
@@ -219,9 +218,6 @@ def generate_qr(request, class_id):
     img.save(buffer, format='PNG')
     buffer.seek(0)
     qr_base64 = base64.b64encode(buffer.getvalue()).decode()
-
-    # Save QR image
-    session.qr_code.save(f'qr_{session.session_id}.png', ContentFile(buffer.getvalue()), save=True)
 
     messages.success(request, f'QR code generated! Valid for {duration} minutes.')
     return render(request, 'attendance/qr_display.html', {
